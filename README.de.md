@@ -8,6 +8,8 @@ Die App ruft für jede Aktion die CLI auf (`proton-drive … -j`) und wertet der
 
 > **Inoffiziell.** Dieses Projekt steht in keiner Verbindung zur Proton AG und wird von ihr weder unterstützt noch geprüft.
 
+> **Mit KI geschrieben.** Code, Tests, Dokumentation, Übersetzung und Icon dieses Projekts wurden von einem KI-Modell geschrieben (Claude von Anthropic). Siehe [KI-Hinweis](#ki-hinweis).
+
 ## Funktionen
 
 - **Browsen:** Meine Dateien, Computer, Von mir geteilt, Mit mir geteilt und Papierkorb, mit Pfadleiste, Verlauf, Sortierung und Filter
@@ -121,6 +123,16 @@ Die Tests brauchen weder Proton-Konto noch Netz; sie steuern die App gegen eine 
 .venv/bin/pip install -r requirements-dev.txt
 .venv/bin/python -m pytest
 ```
+
+## KI-Hinweis
+
+Dieses Projekt wurde mit KI geschrieben, und das soll klar sein, bevor du dich darauf verlässt.
+
+- **Was die KI gemacht hat:** Claude, ein KI-Modell von Anthropic, hat über Claude Code den Code, die Tests, die Dokumentation, die deutsche Übersetzung, die Paketdateien und das Icon geschrieben. Die Commits nennen es als Mitautor.
+- **Was der Maintainer gemacht hat:** Festgelegt, was die App können soll, die Arbeit gesteuert und die App von Hand gegen die echte Proton Drive CLI mit einem echten Konto getestet.
+- **Was nicht passiert ist:** Keine unabhängige Code-Durchsicht und kein Sicherheitsaudit.
+
+Die App startet nur die offizielle CLI und liest deren Ausgabe; Anmeldung, Verschlüsselung und Übertragung erledigt die CLI. Trotzdem kann sie Dateien in deinem Proton Drive verschieben, freigeben und endgültig löschen. Lies also den Code oder probiere sie zuerst mit unwichtigen Daten aus, wenn dir das wichtig ist.
 
 ## Lizenz
 

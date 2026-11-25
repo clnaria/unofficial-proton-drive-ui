@@ -8,6 +8,8 @@ The app runs the CLI for every action (`proton-drive … -j`) and reads its JSON
 
 > **Unofficial.** This project is not affiliated with Proton AG, and is neither supported nor reviewed by them.
 
+> **Written with AI.** The code, tests, documentation, translation and icon of this project were written by an AI model (Claude by Anthropic). See [AI disclosure](#ai-disclosure).
+
 ## Features
 
 - **Browse:** My files, Computer, Shared by me, Shared with me and Trash, with a breadcrumb bar, history, sorting and a filter
@@ -123,6 +125,16 @@ The tests need no Proton account and no network; they drive the app against a fa
 .venv/bin/pip install -r requirements-dev.txt
 .venv/bin/python -m pytest
 ```
+
+## AI disclosure
+
+This project was written with AI, and that should be clear before you rely on it.
+
+- **What the AI did:** Claude, an AI model by Anthropic, wrote the code, the tests, the documentation, the German translation, the packaging files and the icon, working through Claude Code. The commits name it as co-author.
+- **What the maintainer did:** Decided what the app should do, directed the work and tested the app by hand against the real Proton Drive CLI with a real account.
+- **What has not happened:** No independent code review and no security audit.
+
+The app only starts the official CLI and reads its output; signing in, encryption and transfers are done by the CLI. Even so, it can move, share and permanently delete files in your Proton Drive, so read the code or try it with unimportant data first if that matters to you.
 
 ## Licence
 
