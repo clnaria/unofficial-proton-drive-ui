@@ -4,13 +4,16 @@ The environment is prepared before the app module is imported, because the
 app picks its language and settings location at import time.
 """
 
+import atexit
 import json
 import os
+import shutil
 import stat
 import tempfile
 from pathlib import Path
 
 _TMP = Path(tempfile.mkdtemp(prefix="proton-drive-ui-tests-"))
+atexit.register(shutil.rmtree, _TMP, ignore_errors=True)
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ["PROTON_DRIVE_UI_LANG"] = "en"
 os.environ["XDG_CONFIG_HOME"] = str(_TMP / "config")
