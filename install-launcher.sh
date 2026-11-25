@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Legt den Startmenü-Eintrag für die Proton Drive UI an.
+# Legt den Startmenü-Eintrag für die Proton Drive UI (inoffiziell) an.
 # Mit --remove wird er wieder entfernt.
 set -euo pipefail
 
@@ -37,14 +37,14 @@ mkdir -p "$apps"
 cat > "$entry" <<EOF
 [Desktop Entry]
 Type=Application
-Name=Proton Drive UI
+Name=Proton Drive UI (inoffiziell)
 GenericName=Cloud-Dateimanager
-Comment=Grafische Oberfläche für die Proton Drive CLI
+Comment=Inoffizielle grafische Oberfläche für die Proton Drive CLI
 Exec="$exec_path"
 Icon=$dir/icon.svg
 Terminal=false
 Categories=Network;FileTransfer;Qt;
-Keywords=proton;drive;cloud;dateien;upload;download;
+Keywords=proton;drive;cloud;dateien;upload;download;unofficial;inoffiziell;
 StartupNotify=true
 StartupWMClass=proton-drive-ui
 EOF

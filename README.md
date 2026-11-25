@@ -1,6 +1,6 @@
-# Proton Drive UI
+# Proton Drive UI (inoffiziell)
 
-Eine grafische Oberfläche für die offizielle Proton Drive CLI unter Linux, geschrieben in Python mit Qt (PySide6).
+Eine inoffizielle grafische Oberfläche für die offizielle Proton Drive CLI unter Linux, geschrieben in Python mit Qt (PySide6).
 
 Die App ruft für jede Aktion die CLI auf (`proton-drive … -j`) und wertet deren JSON-Ausgabe aus. Anmeldung, Verschlüsselung und Übertragung bleiben vollständig Sache der CLI; die App speichert keine Zugangsdaten.
 
@@ -28,8 +28,8 @@ Getestet mit Proton Drive CLI 0.9.0, Python 3.14 und PySide6 6.12 unter Arch Lin
 Alle Abhängigkeiten landen in einer Umgebung im Projektordner; am System wird nichts installiert.
 
 ```bash
-git clone <URL-des-Repositorys> proton-drive-ui
-cd proton-drive-ui
+git clone https://github.com/clnaria/unofficial-proton-drive-ui.git
+cd unofficial-proton-drive-ui
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 ```

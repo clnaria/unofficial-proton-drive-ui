@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Proton Drive UI – grafische Oberfläche für die proton-drive CLI.
+"""Proton Drive UI (inoffiziell) – grafische Oberfläche für die proton-drive CLI.
+
+Dieses Projekt steht in keiner Verbindung zur Proton AG.
 
 Die App ruft für jede Aktion die CLI auf (`proton-drive … -j`) und wertet
 deren JSON-Ausgabe aus. Anmeldung und Verschlüsselung bleiben Sache der CLI.
@@ -80,6 +82,7 @@ from PySide6.QtWidgets import (
 )
 
 APP_NAME = "proton-drive-ui"
+APP_TITLE = "Proton Drive UI (inoffiziell)"
 NODE_ROLE = Qt.UserRole + 1
 SORT_ROLE = Qt.UserRole + 2
 PATH_ROLE = Qt.UserRole + 3
@@ -968,7 +971,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Proton Drive")
+        self.setWindowTitle(APP_TITLE)
         self.setWindowIcon(app_icon())
         self.resize(1100, 700)
 
@@ -1358,7 +1361,7 @@ class MainWindow(QMainWindow):
             button.clicked.connect(lambda _checked=False, i=index: self._crumb_clicked(i))
             self.crumb_layout.addWidget(button)
         self.crumb_layout.addStretch(1)
-        self.setWindowTitle(f"{self.location[-1].name} – Proton Drive")
+        self.setWindowTitle(f"{self.location[-1].name} – {APP_TITLE}")
 
     def _crumb_clicked(self, index: int):
         if index == len(self.location) - 1:
@@ -1803,7 +1806,7 @@ class MainWindow(QMainWindow):
 def main() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
-    app.setApplicationDisplayName("Proton Drive")
+    app.setApplicationDisplayName(APP_TITLE)
     # Verknüpft das Fenster mit dem Startmenü-Eintrag proton-drive-ui.desktop.
     app.setDesktopFileName(APP_NAME)
     setup_icon_theme()
