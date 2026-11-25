@@ -83,15 +83,27 @@ Das legt `~/.local/share/applications/proton-drive-ui.desktop` an, mit dem aktue
 
 | Datei | Zweck |
 |---|---|
-| `proton_drive_ui.py` | Die gesamte App (Texte im Quelltext sind englisch) |
-| `translations.py` | Deutsche Übersetzung der Oberfläche |
+| `proton_drive_ui/app.py` | Die gesamte App (Texte im Quelltext sind englisch) |
+| `proton_drive_ui/translations.py` | Deutsche Übersetzung der Oberfläche |
+| `proton_drive_ui/icon.svg` | App-Icon (eigenes Motiv, kein Proton-Logo) |
+| `data/proton-drive-ui.desktop` | Starteintrag für Pakete |
+| `tests/` | Tests; laufen gegen eine simulierte CLI, ohne Konto |
+| `pyproject.toml` | Paketdaten und Build-Konfiguration |
 | `run.sh` | Startet die App aus der lokalen Umgebung |
 | `install-launcher.sh` | Legt den Startmenü-Eintrag an oder entfernt ihn |
-| `icon.svg` | App-Icon (eigenes Motiv, kein Proton-Logo) |
-| `requirements.txt` | Python-Abhängigkeiten |
+| `requirements.txt`, `requirements-dev.txt` | Python-Abhängigkeiten für Betrieb und Entwicklung |
 | `LICENSE` | Lizenztext (MIT) |
 
 Geöffnete Dateien liegen vorübergehend unter `~/.cache/proton-drive-ui/open` und werden beim Start und beim Beenden gelöscht. Einstellungen stehen in `~/.config/proton-drive-ui/`.
+
+## Entwicklung
+
+Die Tests brauchen weder Proton-Konto noch Netz; sie steuern die App gegen eine simulierte CLI.
+
+```bash
+.venv/bin/pip install -r requirements-dev.txt
+.venv/bin/python -m pytest
+```
 
 ## Lizenz
 

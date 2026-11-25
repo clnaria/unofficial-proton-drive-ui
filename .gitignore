@@ -5,6 +5,12 @@
 __pycache__/
 *.py[cod]
 
+# Build and test output
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+
 # Editor and desktop files
 .idea/
 .vscode/

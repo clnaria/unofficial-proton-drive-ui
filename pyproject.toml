@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "unofficial-proton-drive-ui"
+dynamic = ["version"]
+description = "Unofficial Qt front end for the Proton Drive CLI"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "clnaria" }]
+keywords = ["proton", "drive", "qt", "pyside6", "gui"]
+classifiers = [
+    "Environment :: X11 Applications :: Qt",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Topic :: Communications :: File Sharing",
+]
+dependencies = ["PySide6-Essentials>=6.10"]
+
+[project.urls]
+Homepage = "https://github.com/clnaria/unofficial-proton-drive-ui"
+Issues = "https://github.com/clnaria/unofficial-proton-drive-ui/issues"
+
+[project.gui-scripts]
+proton-drive-ui = "proton_drive_ui.app:main"
+
+[tool.setuptools]
+packages = ["proton_drive_ui"]
+
+[tool.setuptools.package-data]
+proton_drive_ui = ["icon.svg"]
+
+[tool.setuptools.dynamic]
+version = { attr = "proton_drive_ui.__version__" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

@@ -1,0 +1,16 @@
+[Desktop Entry]
+Type=Application
+Name=Proton Drive UI (unofficial)
+Name[de]=Proton Drive UI (inoffiziell)
+GenericName=Cloud File Manager
+GenericName[de]=Cloud-Dateimanager
+Comment=Unofficial graphical front end for the Proton Drive CLI
+Comment[de]=Inoffizielle grafische Oberfläche für die Proton Drive CLI
+Exec=proton-drive-ui
+Icon=proton-drive-ui
+Terminal=false
+Categories=Network;FileTransfer;Qt;
+Keywords=proton;drive;cloud;files;upload;download;unofficial;
+Keywords[de]=proton;drive;cloud;dateien;upload;download;unofficial;inoffiziell;
+StartupNotify=true
+StartupWMClass=proton-drive-ui

@@ -7,6 +7,7 @@ The app runs the CLI for every action (`proton-drive … -j`) and reads its JSON
 output. Signing in and encryption stay entirely with the CLI.
 
 Source texts are English; German translations live in translations.py.
+Start it with `python -m proton_drive_ui` or the installed `proton-drive-ui` command.
 """
 
 from __future__ import annotations
@@ -92,10 +93,8 @@ APP_NAME = "proton-drive-ui"
 # Language
 # --------------------------------------------------------------------------
 
-try:
-    from translations import GERMAN
-except ImportError:  # without the file the app still works, in English
-    GERMAN = {}
+from . import __version__
+from .translations import GERMAN
 
 
 def system_language() -> str:
@@ -1861,6 +1860,7 @@ def main() -> int:
         app.installTranslator(qt_translator)
     app.setApplicationName(APP_NAME)
     app.setApplicationDisplayName(APP_TITLE)
+    app.setApplicationVersion(__version__)
     # Ties the window to the launcher entry proton-drive-ui.desktop.
     app.setDesktopFileName(APP_NAME)
     setup_icon_theme()

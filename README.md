@@ -85,15 +85,27 @@ This creates `~/.local/share/applications/proton-drive-ui.desktop`, pointing at 
 
 | File | Purpose |
 |---|---|
-| `proton_drive_ui.py` | The whole app (source texts are English) |
-| `translations.py` | German translation of the interface |
+| `proton_drive_ui/app.py` | The whole app (source texts are English) |
+| `proton_drive_ui/translations.py` | German translation of the interface |
+| `proton_drive_ui/icon.svg` | App icon (an original design, not the Proton logo) |
+| `data/proton-drive-ui.desktop` | Launcher entry used by packages |
+| `tests/` | Test suite; runs against a fake CLI, no account needed |
+| `pyproject.toml` | Package metadata and build configuration |
 | `run.sh` | Starts the app from the local environment |
 | `install-launcher.sh` | Creates or removes the launcher entry |
-| `icon.svg` | App icon (an original design, not the Proton logo) |
-| `requirements.txt` | Python dependencies |
+| `requirements.txt`, `requirements-dev.txt` | Python dependencies for running and for development |
 | `LICENSE` | Licence text (MIT) |
 
 Opened files are kept temporarily in `~/.cache/proton-drive-ui/open` and deleted on start and on exit. Settings are stored in `~/.config/proton-drive-ui/`.
+
+## Development
+
+The tests need no Proton account and no network; they drive the app against a fake CLI.
+
+```bash
+.venv/bin/pip install -r requirements-dev.txt
+.venv/bin/python -m pytest
+```
 
 ## Licence
 

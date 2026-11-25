@@ -33,24 +33,15 @@ exec_path="${exec_path//\$/\\\$}"
 exec_path="${exec_path//\\/\\\\}"
 exec_path="${exec_path//%/%%}"
 
+# The packaged entry in data/ is the template; only Exec and Icon point into this checkout.
+template="$dir/data/proton-drive-ui.desktop"
 mkdir -p "$apps"
-cat > "$entry" <<EOF
-[Desktop Entry]
-Type=Application
-Name=Proton Drive UI (unofficial)
-Name[de]=Proton Drive UI (inoffiziell)
-GenericName=Cloud File Manager
-GenericName[de]=Cloud-Dateimanager
-Comment=Unofficial graphical front end for the Proton Drive CLI
-Comment[de]=Inoffizielle grafische Oberfläche für die Proton Drive CLI
-Exec="$exec_path"
-Icon=$dir/icon.svg
-Terminal=false
-Categories=Network;FileTransfer;Qt;
-Keywords=proton;drive;cloud;files;upload;download;unofficial;
-Keywords[de]=proton;drive;cloud;dateien;upload;download;unofficial;inoffiziell;
-StartupNotify=true
-StartupWMClass=proton-drive-ui
-EOF
+while IFS= read -r line; do
+    case "$line" in
+        Exec=*) printf 'Exec="%s"\n' "$exec_path" ;;
+        Icon=*) printf 'Icon=%s\n' "$dir/proton_drive_ui/icon.svg" ;;
+        *) printf '%s\n' "$line" ;;
+    esac
+done < "$template" > "$entry"
 refresh
 echo "Created: $entry"
