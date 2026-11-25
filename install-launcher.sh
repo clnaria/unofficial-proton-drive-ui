@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Legt den Startmenü-Eintrag für die Proton Drive UI (inoffiziell) an.
-# Mit --remove wird er wieder entfernt.
+# Creates the application launcher entry for Proton Drive UI (unofficial).
+# Pass --remove to delete it again.
 set -euo pipefail
 
 dir="$(dirname "$(readlink -f "$0")")"
@@ -19,17 +19,17 @@ refresh() {
 if [[ "${1:-}" == "--remove" ]]; then
     rm -f "$entry"
     refresh
-    echo "Entfernt: $entry"
+    echo "Removed: $entry"
     exit 0
 fi
 
-# In Exec müssen \ " ` $ innerhalb der Anführungszeichen maskiert und % verdoppelt werden.
+# Inside the quoted Exec value, \ " ` $ must be escaped and % doubled.
 exec_path="$dir/run.sh"
 exec_path="${exec_path//\\/\\\\}"
 exec_path="${exec_path//\"/\\\"}"
 exec_path="${exec_path//\`/\\\`}"
 exec_path="${exec_path//\$/\\\$}"
-# Zweite Ebene: In .desktop-Dateien steht jeder Backslash selbst doppelt.
+# Second level: in .desktop files every backslash is itself doubled.
 exec_path="${exec_path//\\/\\\\}"
 exec_path="${exec_path//%/%%}"
 
@@ -37,16 +37,20 @@ mkdir -p "$apps"
 cat > "$entry" <<EOF
 [Desktop Entry]
 Type=Application
-Name=Proton Drive UI (inoffiziell)
-GenericName=Cloud-Dateimanager
-Comment=Inoffizielle grafische Oberfläche für die Proton Drive CLI
+Name=Proton Drive UI (unofficial)
+Name[de]=Proton Drive UI (inoffiziell)
+GenericName=Cloud File Manager
+GenericName[de]=Cloud-Dateimanager
+Comment=Unofficial graphical front end for the Proton Drive CLI
+Comment[de]=Inoffizielle grafische Oberfläche für die Proton Drive CLI
 Exec="$exec_path"
 Icon=$dir/icon.svg
 Terminal=false
 Categories=Network;FileTransfer;Qt;
-Keywords=proton;drive;cloud;dateien;upload;download;unofficial;inoffiziell;
+Keywords=proton;drive;cloud;files;upload;download;unofficial;
+Keywords[de]=proton;drive;cloud;dateien;upload;download;unofficial;inoffiziell;
 StartupNotify=true
 StartupWMClass=proton-drive-ui
 EOF
 refresh
-echo "Angelegt: $entry"
+echo "Created: $entry"

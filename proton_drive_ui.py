@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
-"""Proton Drive UI (inoffiziell) – grafische Oberfläche für die proton-drive CLI.
+"""Proton Drive UI (unofficial) – a graphical front end for the proton-drive CLI.
 
-Dieses Projekt steht in keiner Verbindung zur Proton AG.
+This project is not affiliated with Proton AG.
 
-Die App ruft für jede Aktion die CLI auf (`proton-drive … -j`) und wertet
-deren JSON-Ausgabe aus. Anmeldung und Verschlüsselung bleiben Sache der CLI.
+The app runs the CLI for every action (`proton-drive … -j`) and reads its JSON
+output. Signing in and encryption stay entirely with the CLI.
+
+Source texts are English; German translations live in translations.py.
 """
 
 from __future__ import annotations
 
 import configparser
 import json
+import os
 import re
 import shutil
 import sys
@@ -23,6 +26,7 @@ from PySide6.QtCore import (
     QDate,
     QDateTime,
     QElapsedTimer,
+    QLibraryInfo,
     QLocale,
     QMimeDatabase,
     QObject,
@@ -32,6 +36,7 @@ from PySide6.QtCore import (
     QStandardPaths,
     Qt,
     QTimer,
+    QTranslator,
     QUrl,
     Signal,
 )
@@ -82,7 +87,40 @@ from PySide6.QtWidgets import (
 )
 
 APP_NAME = "proton-drive-ui"
-APP_TITLE = "Proton Drive UI (inoffiziell)"
+
+# --------------------------------------------------------------------------
+# Language
+# --------------------------------------------------------------------------
+
+try:
+    from translations import GERMAN
+except ImportError:  # without the file the app still works, in English
+    GERMAN = {}
+
+
+def system_language() -> str:
+    return "de" if QLocale.system().language() == QLocale.German else "en"
+
+
+def detect_language() -> str:
+    """Returns "de" or "en": environment variable first, then the saved setting, then the system."""
+    forced = os.environ.get("PROTON_DRIVE_UI_LANG", "")
+    if forced not in ("de", "en"):
+        forced = str(QSettings(APP_NAME, APP_NAME).value("language", "") or "")
+    return forced if forced in ("de", "en") else system_language()
+
+
+LANGUAGE = detect_language()
+
+
+def T(text: str) -> str:
+    """Translates an English source text into the active language."""
+    if LANGUAGE == "de":
+        return GERMAN.get(text, text)
+    return text
+
+
+APP_TITLE = T("Proton Drive UI (unofficial)")
 NODE_ROLE = Qt.UserRole + 1
 SORT_ROLE = Qt.UserRole + 2
 PATH_ROLE = Qt.UserRole + 3
@@ -90,46 +128,46 @@ LOADED_ROLE = Qt.UserRole + 4
 
 ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 URL_RE = re.compile(r"https?://[^\s\"'<>\\]+")
-# Meldungen der CLI, wenn keine Sitzung vorhanden ist.
+# Messages the CLI prints when there is no session.
 AUTH_RE = re.compile(r"need to login|login first|no session loaded|not logged in", re.IGNORECASE)
 
-# (CLI-Pfad, Anzeigename, Icon-Name)
+# (CLI path, display name, icon name)
 SECTIONS = [
-    ("/my-files", "Meine Dateien", "folder-cloud"),
+    ("/my-files", T("My files"), "folder-cloud"),
     ("/devices", "Computer", "computer"),
-    ("/shared-by-me", "Von mir geteilt", "folder-publicshare"),
-    ("/shared-with-me", "Mit mir geteilt", "folder-remote"),
-    ("/trash", "Papierkorb", "user-trash"),
+    ("/shared-by-me", T("Shared by me"), "folder-publicshare"),
+    ("/shared-with-me", T("Shared with me"), "folder-remote"),
+    ("/trash", T("Trash"), "user-trash"),
 ]
 
-# Konfliktstrategien der CLI: (Wert, Beschriftung)
+# Conflict strategies of the CLI: (value, label)
 UPLOAD_FILE_STRATEGIES = [
-    ("create-new-revision", "Neue Version anlegen"),
-    ("rename", "Umbenennen"),
-    ("skip", "Überspringen"),
-    ("replace", "Ersetzen (alte Datei in den Papierkorb)"),
+    ("create-new-revision", T("Create new revision")),
+    ("rename", T("Rename")),
+    ("skip", T("Skip")),
+    ("replace", T("Replace (old file goes to trash)")),
 ]
 UPLOAD_FOLDER_STRATEGIES = [
-    ("merge", "Zusammenführen"),
-    ("rename", "Umbenennen"),
-    ("skip", "Überspringen"),
-    ("replace", "Ersetzen (alter Ordner in den Papierkorb)"),
+    ("merge", T("Merge")),
+    ("rename", T("Rename")),
+    ("skip", T("Skip")),
+    ("replace", T("Replace (old folder goes to trash)")),
 ]
 DOWNLOAD_FILE_STRATEGIES = [
-    ("rename", "Umbenennen"),
-    ("skip", "Überspringen"),
-    ("remove", "Lokale Datei ersetzen"),
+    ("rename", T("Rename")),
+    ("skip", T("Skip")),
+    ("remove", T("Replace local file")),
 ]
 DOWNLOAD_FOLDER_STRATEGIES = [
-    ("merge", "Zusammenführen"),
-    ("rename", "Umbenennen"),
-    ("skip", "Überspringen"),
-    ("remove", "Lokalen Ordner ersetzen"),
+    ("merge", T("Merge")),
+    ("rename", T("Rename")),
+    ("skip", T("Skip")),
+    ("remove", T("Replace local folder")),
 ]
 
 
 # --------------------------------------------------------------------------
-# Hilfsfunktionen
+# Helpers
 # --------------------------------------------------------------------------
 
 
@@ -164,7 +202,7 @@ def format_time(value: datetime | None) -> str:
 
 
 def escape_name(name: str) -> str:
-    """Schrägstriche in Namen müssen für CLI-Pfade maskiert werden."""
+    """Slashes in names must be escaped for CLI paths."""
     return name.replace("/", "\\/")
 
 
@@ -183,7 +221,7 @@ def app_icon() -> QIcon:
 
 
 def setup_icon_theme() -> None:
-    """Das mitgelieferte Qt kennt das KDE-Icon-Thema nicht immer von selbst."""
+    """The bundled Qt does not always pick up the KDE icon theme by itself."""
     paths = QIcon.themeSearchPaths()
     missing = [p for p in (str(Path.home() / ".local/share/icons"), "/usr/share/icons") if p not in paths]
     if missing:
@@ -210,7 +248,7 @@ def setup_icon_theme() -> None:
 
 
 # --------------------------------------------------------------------------
-# CLI-Anbindung
+# CLI access
 # --------------------------------------------------------------------------
 
 
@@ -220,17 +258,17 @@ class Result:
     data: object = None
     out: str = ""
     err: str = ""
-    auth_error: bool = False  # CLI meldet: nicht angemeldet
+    auth_error: bool = False  # the CLI reports: not signed in
 
     @property
     def message(self) -> str:
-        return self.err.strip() or self.out.strip() or "Unbekannter Fehler"
+        return self.err.strip() or self.out.strip() or T("Unknown error")
 
 
 class Cli(QObject):
-    """Startet proton-drive asynchron und liefert das Ergebnis per Callback."""
+    """Runs proton-drive asynchronously and delivers the result through a callback."""
 
-    # True: ein Aufruf hat geklappt (angemeldet); False: die CLI verlangt eine Anmeldung.
+    # True: a call succeeded (signed in); False: the CLI asks for a sign-in.
     authChanged = Signal(bool)
 
     def __init__(self, parent=None):
@@ -238,7 +276,7 @@ class Cli(QObject):
         self.program = find_cli()
         self._procs: set[QProcess] = set()
         self.closing = False
-        self.epoch = 0  # wird beim Abmelden erhöht; ältere Aufrufe zählen dann nicht mehr
+        self.epoch = 0  # raised on sign-out; calls started earlier no longer count
 
     def invalidate_session(self):
         self.epoch += 1
@@ -274,7 +312,7 @@ class Cli(QObject):
                 return
             text, errtext = clean_text(out), clean_text(err)
             if start_failed:
-                errtext = f"„{self.program}“ konnte nicht gestartet werden. Ist die Proton Drive CLI installiert?"
+                errtext = T("“{program}” could not be started. Is the Proton Drive CLI installed?").format(program=self.program)
             data = None
             if ok and parse_json:
                 stripped = text.strip()
@@ -307,7 +345,7 @@ class Cli(QObject):
         self._procs.add(proc)
         proc.start()
         if not keep_stdin:
-            # Kein Terminal: Rückfragen der CLI bekommen sofort EOF.
+            # No terminal: prompts from the CLI get EOF right away.
             proc.closeWriteChannel()
         return proc
 
@@ -319,7 +357,7 @@ class Cli(QObject):
 
 
 # --------------------------------------------------------------------------
-# Datenmodell
+# Data model
 # --------------------------------------------------------------------------
 
 
@@ -333,7 +371,7 @@ class Crumb:
 class Node:
     name: str
     kind: str  # file, folder, album, photo, device
-    path: str  # Pfad für die CLI
+    path: str  # path for the CLI
     uid: str = ""
     size: int | None = None
     mtime: datetime | None = None
@@ -343,7 +381,7 @@ class Node:
     shared_url: bool = False
     owner: str = ""
     role: str = ""
-    ambiguous: bool = False  # gleicher Name mehrfach im Papierkorb
+    ambiguous: bool = False  # same name more than once in the trash
     raw: dict = field(default_factory=dict)
 
     @property
@@ -362,7 +400,7 @@ def parse_entries(parent_path: str, entries) -> list[Node]:
     nodes: list[Node] = []
     if not isinstance(entries, list):
         return nodes
-    # Im Papierkorb versteht die CLI (Stand 0.9.0) nur Namen, keine UIDs.
+    # In the trash the CLI (as of 0.9.0) only understands names, not UIDs.
     by_name = parent_path == "/trash"
     name_counts: dict[str, int] = {}
     if by_name:
@@ -377,7 +415,7 @@ def parse_entries(parent_path: str, entries) -> list[Node]:
         name = _entry_name(entry)
         uid = entry.get("uid", "") or ""
 
-        if "rootFolderUid" in entry:  # Eintrag unter /devices
+        if "rootFolderUid" in entry:  # entry below /devices
             if name and "\\" not in name:
                 segment = escape_name(name)
             else:
@@ -404,21 +442,21 @@ def parse_entries(parent_path: str, entries) -> list[Node]:
                     size = int(candidate)
                     break
         owner = entry.get("ownedBy") if isinstance(entry.get("ownedBy"), dict) else {}
-        # Die UID als Pfadteil ist eindeutig und braucht keine Maskierung.
+        # The UID as a path segment is unique and needs no escaping.
         if by_name and name:
             segment = escape_name(name)
         else:
             segment = uid or escape_name(name or "")
         nodes.append(
             Node(
-                name=name or f"(Name nicht lesbar) {uid[-8:]}",
+                name=name or T("(name unreadable) {uid}").format(uid=uid[-8:]),
                 kind=kind,
                 path=f"{parent_path}/{segment}",
                 uid=uid,
                 size=size,
                 mtime=parse_time(revision.get("claimedModificationTime")) or parse_time(entry.get("modificationTime")),
                 ctime=parse_time(entry.get("creationTime")),
-                # Parameter wie „;charset=utf-8“ kennt die MIME-Datenbank nicht.
+                # The MIME database does not know parameters such as ";charset=utf-8".
                 media_type=str(entry.get("mediaType", "") or "").split(";")[0].strip(),
                 shared=bool(entry.get("isShared")),
                 shared_url=bool(entry.get("isSharedByUrl")),
@@ -432,8 +470,8 @@ def parse_entries(parent_path: str, entries) -> list[Node]:
 
 
 def failures_text(data) -> str:
-    """Liest Fehlermeldungen aus einer JSON-Antwort, falls vorhanden."""
-    if isinstance(data, list):  # z. B. [{"uid": …, "ok": false, "error": …}]
+    """Extracts failure messages from a JSON response, if there are any."""
+    if isinstance(data, list):  # e.g. [{"uid": …, "ok": false, "error": …}]
         failed = [entry for entry in data if isinstance(entry, dict) and entry.get("ok") is False]
         return json.dumps(failed, indent=2, ensure_ascii=False) if failed else ""
     if not isinstance(data, dict):
@@ -442,12 +480,12 @@ def failures_text(data) -> str:
     if failures:
         return json.dumps(failures, indent=2, ensure_ascii=False)
     if data.get("failedItems"):
-        return f"{data['failedItems']} Element(e) fehlgeschlagen."
+        return T("{count} item(s) failed.").format(count=data["failedItems"])
     return ""
 
 
 class NodeProxy(QSortFilterProxyModel):
-    """Sortiert Ordner immer vor Dateien und Namen mit natürlicher Zahlenfolge."""
+    """Always sorts folders before files, and names in natural numeric order."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -483,7 +521,7 @@ class NodeProxy(QSortFilterProxyModel):
 
 
 class DropTreeView(QTreeView):
-    """Dateiliste, die lokale Dateien per Drag & Drop annimmt."""
+    """File list that accepts local files by drag and drop."""
 
     filesDropped = Signal(list)
 
@@ -502,7 +540,7 @@ class DropTreeView(QTreeView):
 
     def _handle_drag(self, event):
         if self.drop_enabled and self._local_paths(event):
-            # Immer kopieren: die Quelle darf nichts löschen.
+            # Always copy: the source must not delete anything.
             event.setDropAction(Qt.CopyAction)
             event.accept()
         else:
@@ -538,7 +576,7 @@ class Transfer:
 
 
 class TransferPanel(QWidget):
-    """Warteschlange für Up- und Downloads; es läuft immer nur einer."""
+    """Queue for uploads and downloads; only one runs at a time."""
 
     changed = Signal()
 
@@ -550,18 +588,18 @@ class TransferPanel(QWidget):
         self.current: Transfer | None = None
 
         self.tree = QTreeWidget()
-        self.tree.setHeaderLabels(["Vorgang", "Details", "Status"])
+        self.tree.setHeaderLabels([T("Task"), "Details", "Status"])
         self.tree.setRootIsDecorated(False)
         self.tree.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.tree.setColumnWidth(0, 130)
         self.tree.setColumnWidth(1, 380)
 
-        self.cancel_btn = QPushButton("Abbrechen")
-        self.cancel_btn.setToolTip("Bricht die markierten Übertragungen ab – ohne Markierung die gerade laufende.")
+        self.cancel_btn = QPushButton(T("Cancel"))
+        self.cancel_btn.setToolTip(T("Cancels the selected transfers, or the running one if none is selected."))
         self.cancel_btn.setEnabled(False)
         self.cancel_btn.clicked.connect(self.cancel_selected)
         self.changed.connect(lambda: self.cancel_btn.setEnabled(self.busy()))
-        clear_btn = QPushButton("Erledigte entfernen")
+        clear_btn = QPushButton(T("Clear finished"))
         clear_btn.clicked.connect(self.clear_finished)
         buttons = QVBoxLayout()
         buttons.addWidget(self.cancel_btn)
@@ -581,7 +619,7 @@ class TransferPanel(QWidget):
         return self.current is not None or bool(self.queue)
 
     def add(self, title: str, detail: str, args: list, on_done=None):
-        item = QTreeWidgetItem([title, detail, "Wartet"])
+        item = QTreeWidgetItem([title, detail, T("Waiting")])
         item.setToolTip(1, detail)
         self.tree.addTopLevelItem(item)
         self.tree.scrollToItem(item)
@@ -598,7 +636,7 @@ class TransferPanel(QWidget):
         self.current = transfer
         transfer.state = "running"
         transfer.clock.start()
-        transfer.item.setText(2, "Läuft …")
+        transfer.item.setText(2, T("Running …"))
         transfer.proc = self.cli.run(transfer.args, lambda res, t=transfer: self._finished(t, res))
         self.tick.start()
 
@@ -606,7 +644,7 @@ class TransferPanel(QWidget):
         if self.current is None:
             return
         secs = self.current.clock.elapsed() // 1000
-        self.current.item.setText(2, f"Läuft … {secs // 60}:{secs % 60:02d}")
+        self.current.item.setText(2, T("Running … {time}").format(time=f"{secs // 60}:{secs % 60:02d}"))
 
     def _finished(self, transfer: Transfer, res: Result):
         self.current = None
@@ -614,10 +652,10 @@ class TransferPanel(QWidget):
         item = transfer.item
         if transfer.cancelled:
             transfer.state = "cancelled"
-            item.setText(2, "Abgebrochen")
+            item.setText(2, T("Cancelled"))
         elif not res.ok:
             transfer.state = "failed"
-            item.setText(2, "Fehlgeschlagen: " + res.message.splitlines()[0])
+            item.setText(2, T("Failed: ") + res.message.splitlines()[0])
             item.setToolTip(2, res.message)
         else:
             transfer.state = "done"
@@ -634,17 +672,17 @@ class TransferPanel(QWidget):
     @staticmethod
     def _summary(data) -> tuple[str, str]:
         if not isinstance(data, dict):
-            return "Fertig", ""
-        parts = [f"{data.get('transferredItems', 0)} Element(e), {human_size(data.get('transferredBytes', 0))}"]
+            return T("Done"), ""
+        parts = [T("{count} item(s), {size}").format(count=data.get("transferredItems", 0), size=human_size(data.get("transferredBytes", 0)))]
         if data.get("skippedItems"):
-            parts.append(f"{data['skippedItems']} übersprungen")
+            parts.append(T("{count} skipped").format(count=data["skippedItems"]))
         if data.get("failedItems"):
-            parts.append(f"{data['failedItems']} fehlgeschlagen")
-        prefix = "Mit Fehlern" if data.get("failedItems") else "Fertig"
+            parts.append(T("{count} failed").format(count=data["failedItems"]))
+        prefix = T("Finished with errors") if data.get("failedItems") else T("Done")
         return f"{prefix} – " + ", ".join(parts), failures_text(data)
 
     def cancel_selected(self):
-        """Bricht markierte wartende/laufende Übertragungen ab, sonst die laufende."""
+        """Cancels the selected queued/running transfers, otherwise the running one."""
         selected = self.tree.selectedItems()
         targets = [
             t for t in self.transfers if t.state in ("queued", "running") and any(t.item is item for item in selected)
@@ -655,7 +693,7 @@ class TransferPanel(QWidget):
             if transfer.state == "queued":
                 self.queue.remove(transfer)
                 transfer.state = "cancelled"
-                transfer.item.setText(2, "Abgebrochen")
+                transfer.item.setText(2, T("Cancelled"))
             elif transfer.state == "running" and transfer.proc is not None:
                 transfer.cancelled = True
                 transfer.proc.kill()
@@ -672,7 +710,7 @@ class TransferPanel(QWidget):
 
 
 class FolderPicker(QDialog):
-    """Auswahl eines Zielordners in „Meine Dateien“ (lädt Unterordner bei Bedarf)."""
+    """Picks a target folder in "My files" (loads subfolders on demand)."""
 
     def __init__(self, cli: Cli, title: str, parent=None):
         super().__init__(parent)
@@ -686,7 +724,7 @@ class FolderPicker(QDialog):
         self.tree.itemExpanded.connect(self._load_children)
         self.tree.itemDoubleClicked.connect(lambda *_: None)
 
-        root = QTreeWidgetItem(["Meine Dateien"])
+        root = QTreeWidgetItem([T("My files")])
         root.setIcon(0, themed_icon("folder-cloud", QStyle.SP_DirIcon))
         root.setData(0, PATH_ROLE, "/my-files")
         root.setChildIndicatorPolicy(QTreeWidgetItem.ShowIndicator)
@@ -694,8 +732,8 @@ class FolderPicker(QDialog):
         self.tree.setCurrentItem(root)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        buttons.button(QDialogButtonBox.Ok).setText("Hierhin")
-        buttons.button(QDialogButtonBox.Cancel).setText("Abbrechen")
+        buttons.button(QDialogButtonBox.Ok).setText(T("Select"))
+        buttons.button(QDialogButtonBox.Cancel).setText(T("Cancel"))
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
 
@@ -713,14 +751,14 @@ class FolderPicker(QDialog):
             return
         item.setData(0, LOADED_ROLE, True)
         path = item.data(0, PATH_ROLE)
-        item.setText(0, item.text(0) + "  (lädt …)")
+        item.setText(0, item.text(0) + T("  (loading …)"))
 
         def loaded(res: Result):
             if not self._open:
                 return
-            item.setText(0, item.text(0).replace("  (lädt …)", ""))
+            item.setText(0, item.text(0).replace(T("  (loading …)"), ""))
             if not res.ok:
-                error = QTreeWidgetItem([f"Fehler: {res.message.splitlines()[0]}"])
+                error = QTreeWidgetItem([T("Error: {message}").format(message=res.message.splitlines()[0])])
                 error.setFlags(Qt.NoItemFlags)
                 item.addChild(error)
                 return
@@ -743,7 +781,7 @@ class FolderPicker(QDialog):
 
 
 class ShareDialog(QDialog):
-    """Öffentlichen Link für eine Datei oder einen Ordner verwalten."""
+    """Manages the public link of a file or folder."""
 
     def __init__(self, cli: Cli, node: Node, parent=None):
         super().__init__(parent)
@@ -751,15 +789,15 @@ class ShareDialog(QDialog):
         self.node = node
         self.changed = False
         self._open = True
-        self.setWindowTitle(f"Freigabe – {node.name}")
+        self.setWindowTitle(T("Sharing – {name}").format(name=node.name))
         self.resize(560, 520)
 
-        self.status_label = QLabel("Lade Freigabestatus …")
+        self.status_label = QLabel(T("Loading sharing status …"))
         self.status_label.setWordWrap(True)
         self.url_edit = QLineEdit()
         self.url_edit.setReadOnly(True)
-        self.url_edit.setPlaceholderText("Kein öffentlicher Link")
-        self.copy_btn = QPushButton("Kopieren")
+        self.url_edit.setPlaceholderText(T("No public link"))
+        self.copy_btn = QPushButton(T("Copy"))
         self.copy_btn.setIcon(themed_icon("edit-copy"))
         self.copy_btn.clicked.connect(self._copy_url)
         url_row = QHBoxLayout()
@@ -768,14 +806,14 @@ class ShareDialog(QDialog):
 
         self.details = QPlainTextEdit()
         self.details.setReadOnly(True)
-        self.details.setPlaceholderText("Details der CLI erscheinen hier.")
+        self.details.setPlaceholderText(T("Details from the CLI appear here."))
 
         self.role_combo = QComboBox()
-        self.role_combo.addItem("Betrachter", "viewer")
-        self.role_combo.addItem("Bearbeiter", "editor")
+        self.role_combo.addItem(T("Viewer"), "viewer")
+        self.role_combo.addItem(T("Editor"), "editor")
         self.password_edit = QLineEdit()
         self.password_edit.setPlaceholderText("optional")
-        self.expiry_check = QCheckBox("Läuft ab am")
+        self.expiry_check = QCheckBox(T("Expires on"))
         self.expiry_edit = QDateEdit(QDate.currentDate().addDays(7))
         self.expiry_edit.setCalendarPopup(True)
         self.expiry_edit.setMinimumDate(QDate.currentDate().addDays(1))
@@ -786,15 +824,15 @@ class ShareDialog(QDialog):
         expiry_row.addWidget(self.expiry_edit, 1)
 
         form = QFormLayout()
-        form.addRow("Rolle:", self.role_combo)
-        form.addRow("Link-Passwort:", self.password_edit)
+        form.addRow(T("Role:"), self.role_combo)
+        form.addRow(T("Link password:"), self.password_edit)
         form.addRow(expiry_row)
 
-        self.set_btn = QPushButton("Link erstellen / aktualisieren")
+        self.set_btn = QPushButton(T("Create / update link"))
         self.set_btn.clicked.connect(self._set_url)
-        self.remove_btn = QPushButton("Link entfernen")
+        self.remove_btn = QPushButton(T("Remove link"))
         self.remove_btn.clicked.connect(self._remove_url)
-        close_btn = QPushButton("Schließen")
+        close_btn = QPushButton(T("Close"))
         close_btn.clicked.connect(self.accept)
         button_row = QHBoxLayout()
         button_row.addWidget(self.set_btn)
@@ -826,11 +864,11 @@ class ShareDialog(QDialog):
                 return
             self._set_busy(False)
             if not res.ok:
-                self.status_label.setText(f"Status konnte nicht geladen werden: {res.message}")
+                self.status_label.setText(T("Could not load the status: {message}").format(message=res.message))
                 return
             if res.data is None:
                 self.remove_btn.setEnabled(False)
-                self.status_label.setText("Dieses Element ist nicht geteilt.")
+                self.status_label.setText(T("This item is not shared."))
                 self.details.setPlainText(res.out.strip() if res.out.strip() != "undefined" else "")
                 self.url_edit.clear()
                 return
@@ -838,7 +876,7 @@ class ShareDialog(QDialog):
             self.details.setPlainText(text)
             self._show_url(text)
             self.status_label.setText(
-                "Öffentlicher Link aktiv." if self.url_edit.text() else "Geteilt (kein öffentlicher Link gefunden)."
+                T("Public link is active.") if self.url_edit.text() else T("Shared (no public link found).")
             )
 
         self.cli.run(["sharing", "status", "-j", "--", self.node.path], loaded)
@@ -851,7 +889,7 @@ class ShareDialog(QDialog):
     def _copy_url(self):
         if self.url_edit.text():
             QGuiApplication.clipboard().setText(self.url_edit.text())
-            self.status_label.setText("Link in die Zwischenablage kopiert.")
+            self.status_label.setText(T("Link copied to the clipboard."))
 
     def _set_url(self):
         args = ["sharing", "set-url", "-j", "--role", self.role_combo.currentData()]
@@ -861,7 +899,7 @@ class ShareDialog(QDialog):
             args += ["--expiration", self.expiry_edit.date().toString("yyyy-MM-dd")]
         args += ["--", self.node.path]
         self._set_busy(True)
-        self.status_label.setText("Erstelle Link …")
+        self.status_label.setText(T("Creating link …"))
 
         def finished(res: Result):
             if not self._open:
@@ -869,7 +907,7 @@ class ShareDialog(QDialog):
             self.changed = True
             if not res.ok:
                 self._set_busy(False)
-                self.status_label.setText(f"Link konnte nicht erstellt werden: {res.message}")
+                self.status_label.setText(T("Could not create the link: {message}").format(message=res.message))
                 return
             self._show_url(res.out)
             self.refresh()
@@ -879,13 +917,13 @@ class ShareDialog(QDialog):
     def _remove_url(self):
         answer = QMessageBox.question(
             self,
-            "Link entfernen",
-            f"Öffentlichen Link für „{self.node.name}“ entfernen?\nDer bisherige Link funktioniert danach nicht mehr.",
+            T("Remove link"),
+            T("Remove the public link for “{name}”?\nThe existing link will stop working.").format(name=self.node.name),
         )
         if answer != QMessageBox.Yes:
             return
         self._set_busy(True)
-        self.status_label.setText("Entferne Link …")
+        self.status_label.setText(T("Removing link …"))
 
         def finished(res: Result):
             if not self._open:
@@ -893,7 +931,7 @@ class ShareDialog(QDialog):
             self.changed = True
             if not res.ok:
                 self._set_busy(False)
-                self.status_label.setText(f"Link konnte nicht entfernt werden: {res.message}")
+                self.status_label.setText(T("Could not remove the link: {message}").format(message=res.message))
                 return
             self.url_edit.clear()
             self.refresh()
@@ -902,26 +940,25 @@ class ShareDialog(QDialog):
 
 
 class LoginDialog(QDialog):
-    """Führt `proton-drive auth login` aus; die Anmeldung selbst passiert im Browser."""
+    """Runs `proton-drive auth login`; the sign-in itself happens in the browser."""
 
     def __init__(self, cli: Cli, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Bei Proton anmelden")
+        self.setWindowTitle(T("Sign in to Proton"))
         self.resize(560, 320)
         self._open = True
         self._url = ""
 
         info = QLabel(
-            "Die CLI öffnet deinen Browser für die Anmeldung. "
-            "Dieses Fenster schließt sich, sobald die Anmeldung abgeschlossen ist."
+            T("The CLI opens your browser for signing in. This window closes as soon as sign-in is complete.")
         )
         info.setWordWrap(True)
         self.output = QPlainTextEdit()
         self.output.setReadOnly(True)
-        self.open_btn = QPushButton("Link im Browser öffnen")
+        self.open_btn = QPushButton(T("Open link in browser"))
         self.open_btn.setEnabled(False)
         self.open_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(self._url)))
-        cancel_btn = QPushButton("Abbrechen")
+        cancel_btn = QPushButton(T("Cancel"))
         cancel_btn.clicked.connect(self.reject)
         row = QHBoxLayout()
         row.addWidget(self.open_btn)
@@ -952,7 +989,7 @@ class LoginDialog(QDialog):
         if res.ok:
             self.accept()
         else:
-            self.output.appendPlainText(f"\nAnmeldung fehlgeschlagen: {res.message}")
+            self.output.appendPlainText(T("\nSign-in failed: {message}").format(message=res.message))
 
     def done(self, result):
         self._open = False
@@ -962,12 +999,12 @@ class LoginDialog(QDialog):
 
 
 # --------------------------------------------------------------------------
-# Hauptfenster
+# Main window
 # --------------------------------------------------------------------------
 
 
 class MainWindow(QMainWindow):
-    COLUMNS = ["Name", "Größe", "Typ", "Geändert", "Freigabe"]
+    COLUMNS = ["Name", T("Size"), T("Type"), T("Modified"), T("Sharing")]
 
     def __init__(self):
         super().__init__()
@@ -985,7 +1022,7 @@ class MainWindow(QMainWindow):
         self.forward_stack: list[list[Crumb]] = []
         self._load_token = 0
         self._busy = 0
-        self.logged_in: bool | None = None  # None: noch unbekannt
+        self.logged_in: bool | None = None  # None: not known yet
         self.cli.authChanged.connect(self._set_logged_in)
         cache_root = QStandardPaths.writableLocation(QStandardPaths.CacheLocation) or str(Path.home() / ".cache" / APP_NAME)
         self.open_cache = Path(cache_root) / "open"
@@ -997,7 +1034,7 @@ class MainWindow(QMainWindow):
         self._restore_state()
         self.navigate([Crumb(SECTIONS[0][1], SECTIONS[0][0])], push=False)
 
-    # ----- Aufbau ---------------------------------------------------------
+    # ----- Setup ---------------------------------------------------------
 
     def _action(self, text, icon_name, slot, shortcut=None, fallback=None) -> QAction:
         action = QAction(themed_icon(icon_name, fallback), text, self)
@@ -1009,30 +1046,30 @@ class MainWindow(QMainWindow):
 
     def _build_actions(self):
         S = QStyle
-        self.act_back = self._action("Zurück", "go-previous", self.go_back, "Alt+Left", S.SP_ArrowBack)
-        self.act_forward = self._action("Vor", "go-next", self.go_forward, "Alt+Right", S.SP_ArrowForward)
-        self.act_up = self._action("Übergeordneter Ordner", "go-up", self.go_up, "Alt+Up", S.SP_ArrowUp)
-        self.act_reload = self._action("Aktualisieren", "view-refresh", self.reload, "F5", S.SP_BrowserReload)
-        self.act_upload_files = self._action("Dateien hochladen …", "document-send", self.upload_files, "Ctrl+U", S.SP_ArrowUp)
-        self.act_upload_folder = self._action("Ordner hochladen …", "folder-upload", self.upload_folder, None, S.SP_DirIcon)
-        self.act_new_folder = self._action("Neuer Ordner …", "folder-new", self.new_folder, "Ctrl+Shift+N", S.SP_FileDialogNewFolder)
-        self.act_download = self._action("Herunterladen …", "download", self.download_selected, "Ctrl+D", S.SP_ArrowDown)
-        self.act_open = self._action("Öffnen", "document-open", self.open_selected, None, S.SP_DialogOpenButton)
-        self.act_rename = self._action("Umbenennen …", "edit-rename", self.rename_selected, "F2")
-        self.act_move = self._action("Verschieben nach …", "edit-move", self.move_selected)
-        self.act_copy = self._action("Kopieren nach …", "edit-copy", self.copy_selected)
-        self.act_trash = self._action("In den Papierkorb", "user-trash", self.trash_selected, "Delete", S.SP_TrashIcon)
-        self.act_share = self._action("Freigabelink …", "document-share", self.share_selected)
-        self.act_properties = self._action("Eigenschaften", "document-properties", self.show_properties, "Alt+Return")
-        self.act_restore = self._action("Wiederherstellen", "edit-undo", self.restore_selected)
-        self.act_delete = self._action("Endgültig löschen …", "edit-delete", self.delete_selected, None, S.SP_DialogDiscardButton)
-        self.act_empty_trash = self._action("Papierkorb leeren …", "trash-empty", self.empty_trash, None, S.SP_TrashIcon)
-        self.act_login = self._action("Anmelden …", "system-users", self.login)
-        self.act_logout = self._action("Abmelden", "system-log-out", self.logout)
+        self.act_back = self._action(T("Back"), "go-previous", self.go_back, "Alt+Left", S.SP_ArrowBack)
+        self.act_forward = self._action(T("Forward"), "go-next", self.go_forward, "Alt+Right", S.SP_ArrowForward)
+        self.act_up = self._action(T("Parent folder"), "go-up", self.go_up, "Alt+Up", S.SP_ArrowUp)
+        self.act_reload = self._action(T("Refresh"), "view-refresh", self.reload, "F5", S.SP_BrowserReload)
+        self.act_upload_files = self._action(T("Upload files …"), "document-send", self.upload_files, "Ctrl+U", S.SP_ArrowUp)
+        self.act_upload_folder = self._action(T("Upload folder …"), "folder-upload", self.upload_folder, None, S.SP_DirIcon)
+        self.act_new_folder = self._action(T("New folder …"), "folder-new", self.new_folder, "Ctrl+Shift+N", S.SP_FileDialogNewFolder)
+        self.act_download = self._action(T("Download …"), "download", self.download_selected, "Ctrl+D", S.SP_ArrowDown)
+        self.act_open = self._action(T("Open"), "document-open", self.open_selected, None, S.SP_DialogOpenButton)
+        self.act_rename = self._action(T("Rename …"), "edit-rename", self.rename_selected, "F2")
+        self.act_move = self._action(T("Move to …"), "edit-move", self.move_selected)
+        self.act_copy = self._action(T("Copy to …"), "edit-copy", self.copy_selected)
+        self.act_trash = self._action(T("Move to trash"), "user-trash", self.trash_selected, "Delete", S.SP_TrashIcon)
+        self.act_share = self._action(T("Share link …"), "document-share", self.share_selected)
+        self.act_properties = self._action(T("Properties"), "document-properties", self.show_properties, "Alt+Return")
+        self.act_restore = self._action(T("Restore"), "edit-undo", self.restore_selected)
+        self.act_delete = self._action(T("Delete permanently …"), "edit-delete", self.delete_selected, None, S.SP_DialogDiscardButton)
+        self.act_empty_trash = self._action(T("Empty trash …"), "trash-empty", self.empty_trash, None, S.SP_TrashIcon)
+        self.act_login = self._action(T("Sign in …"), "system-users", self.login)
+        self.act_logout = self._action(T("Sign out"), "system-log-out", self.logout)
         self.act_login.setVisible(False)
         self.act_logout.setVisible(False)
-        self.act_filter = self._action("Im Ordner filtern", "view-filter", lambda: self.filter_edit.setFocus(), "Ctrl+F")
-        self.act_quit = self._action("Beenden", "application-exit", self.close, "Ctrl+Q")
+        self.act_filter = self._action(T("Filter in folder"), "view-filter", lambda: self.filter_edit.setFocus(), "Ctrl+F")
+        self.act_quit = self._action(T("Quit"), "application-exit", self.close, "Ctrl+Q")
 
     def _build_ui(self):
         nav = QToolBar("Navigation")
@@ -1042,7 +1079,7 @@ class MainWindow(QMainWindow):
             nav.addAction(action)
         self.addToolBar(nav)
 
-        tools = QToolBar("Aktionen")
+        tools = QToolBar(T("Actions"))
         tools.setObjectName("actions")
         tools.setMovable(False)
         tools.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
@@ -1051,7 +1088,7 @@ class MainWindow(QMainWindow):
         tools.addAction(self.act_empty_trash)
         self.addToolBar(tools)
 
-        # Seitenleiste
+        # Sidebar
         self.sidebar = QListWidget()
         self.sidebar.setMinimumWidth(170)
         self.sidebar.setMaximumWidth(260)
@@ -1061,20 +1098,20 @@ class MainWindow(QMainWindow):
             self.sidebar.addItem(item)
         self.sidebar.currentRowChanged.connect(self._sidebar_changed)
 
-        # Pfadleiste und Filter
+        # Breadcrumb bar and filter
         self.crumb_bar = QWidget()
         self.crumb_layout = QHBoxLayout(self.crumb_bar)
         self.crumb_layout.setContentsMargins(0, 0, 0, 0)
         self.crumb_layout.setSpacing(0)
         self.filter_edit = QLineEdit()
-        self.filter_edit.setPlaceholderText("Filtern …")
+        self.filter_edit.setPlaceholderText(T("Filter …"))
         self.filter_edit.setClearButtonEnabled(True)
         self.filter_edit.setMaximumWidth(240)
         top_row = QHBoxLayout()
         top_row.addWidget(self.crumb_bar, 1)
         top_row.addWidget(self.filter_edit)
 
-        # Dateiliste
+        # File list
         self.model = QStandardItemModel(0, len(self.COLUMNS), self)
         self.model.setHorizontalHeaderLabels(self.COLUMNS)
         self.proxy = NodeProxy(self)
@@ -1104,14 +1141,14 @@ class MainWindow(QMainWindow):
         self.view.setColumnWidth(3, 140)
         self.view.setColumnWidth(4, 90)
 
-        # Hinweisseite (Fehler, Anmeldung)
+        # Message page (errors, sign-in)
         self.message_label = QLabel()
         self.message_label.setWordWrap(True)
         self.message_label.setAlignment(Qt.AlignCenter)
         self.message_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        retry_btn = QPushButton("Erneut versuchen")
+        retry_btn = QPushButton(T("Try again"))
         retry_btn.clicked.connect(self.reload)
-        self.message_login_btn = QPushButton("Anmelden …")
+        self.message_login_btn = QPushButton(T("Sign in …"))
         self.message_login_btn.clicked.connect(self.login)
         message_buttons = QHBoxLayout()
         message_buttons.addStretch(1)
@@ -1142,17 +1179,17 @@ class MainWindow(QMainWindow):
         splitter.setSizes([190, 900])
         self.setCentralWidget(splitter)
 
-        # Übertragungen
+        # Transfers
         self.transfers = TransferPanel(self.cli)
         self.transfers.changed.connect(self._transfers_changed)
-        self.transfer_dock = QDockWidget("Übertragungen", self)
+        self.transfer_dock = QDockWidget(T("Transfers"), self)
         self.transfer_dock.setObjectName("transfers")
         self.transfer_dock.setWidget(self.transfers)
         self.transfer_dock.setAllowedAreas(Qt.BottomDockWidgetArea)
         self.addDockWidget(Qt.BottomDockWidgetArea, self.transfer_dock)
         self.transfer_dock.hide()
 
-        # Statusleiste
+        # Status bar
         self.busy_bar = QProgressBar()
         self.busy_bar.setRange(0, 0)
         self.busy_bar.setMaximumWidth(140)
@@ -1162,26 +1199,35 @@ class MainWindow(QMainWindow):
 
     def _build_menus(self):
         menubar = self.menuBar()
-        file_menu = menubar.addMenu("&Datei")
+        file_menu = menubar.addMenu(T("&File"))
         for action in (self.act_upload_files, self.act_upload_folder, self.act_new_folder, None, self.act_download, None, self.act_login, self.act_logout, None, self.act_quit):
             file_menu.addSeparator() if action is None else file_menu.addAction(action)
 
-        edit_menu = menubar.addMenu("&Bearbeiten")
+        edit_menu = menubar.addMenu(T("&Edit"))
         for action in (self.act_open, self.act_rename, self.act_move, self.act_copy, self.act_trash, None, self.act_share, self.act_properties, None, self.act_restore, self.act_delete, self.act_empty_trash):
             edit_menu.addSeparator() if action is None else edit_menu.addAction(action)
 
-        view_menu = menubar.addMenu("&Ansicht")
+        view_menu = menubar.addMenu(T("&View"))
         for action in (self.act_back, self.act_forward, self.act_up, self.act_reload, None, self.act_filter):
             view_menu.addSeparator() if action is None else view_menu.addAction(action)
         view_menu.addSeparator()
         view_menu.addAction(self.transfer_dock.toggleViewAction())
+        language_menu = view_menu.addMenu(T("Language"))
+        language_group = QActionGroup(language_menu)
+        saved_language = str(self.settings.value("language", "") or "")
+        for value, label in (("", T("System default")), ("de", "Deutsch"), ("en", "English")):
+            action = language_menu.addAction(label)
+            action.setCheckable(True)
+            action.setChecked(value == saved_language)
+            action.triggered.connect(lambda _checked=False, v=value: self._set_language(v))
+            language_group.addAction(action)
 
-        conflict_menu = menubar.addMenu("&Konflikte")
-        self._strategy_menu(conflict_menu, "Upload: vorhandene Datei", "upload_file", UPLOAD_FILE_STRATEGIES)
-        self._strategy_menu(conflict_menu, "Upload: vorhandener Ordner", "upload_folder", UPLOAD_FOLDER_STRATEGIES)
+        conflict_menu = menubar.addMenu(T("&Conflicts"))
+        self._strategy_menu(conflict_menu, T("Upload: existing file"), "upload_file", UPLOAD_FILE_STRATEGIES)
+        self._strategy_menu(conflict_menu, T("Upload: existing folder"), "upload_folder", UPLOAD_FOLDER_STRATEGIES)
         conflict_menu.addSeparator()
-        self._strategy_menu(conflict_menu, "Download: vorhandene Datei", "download_file", DOWNLOAD_FILE_STRATEGIES)
-        self._strategy_menu(conflict_menu, "Download: vorhandener Ordner", "download_folder", DOWNLOAD_FOLDER_STRATEGIES)
+        self._strategy_menu(conflict_menu, T("Download: existing file"), "download_file", DOWNLOAD_FILE_STRATEGIES)
+        self._strategy_menu(conflict_menu, T("Download: existing folder"), "download_folder", DOWNLOAD_FOLDER_STRATEGIES)
 
     def _strategy_menu(self, parent: QMenu, title: str, key: str, options):
         menu = parent.addMenu(title)
@@ -1206,12 +1252,17 @@ class MainWindow(QMainWindow):
         value = self.settings.value(f"conflict/{key}", valid[0])
         return value if value in valid else valid[0]
 
+    def _set_language(self, value: str):
+        self.settings.setValue("language", value)
+        self.settings.sync()
+        QMessageBox.information(self, T("Language"), T("The new language is used after restarting the app."))
+
     def _restore_state(self):
         geometry = self.settings.value("window/geometry")
         if geometry is not None:
             self.restoreGeometry(geometry)
 
-    # ----- Zustand --------------------------------------------------------
+    # ----- State --------------------------------------------------------
 
     @property
     def section(self) -> str:
@@ -1225,7 +1276,7 @@ class MainWindow(QMainWindow):
         return self.section == "/trash"
 
     def can_write_here(self) -> bool:
-        """Darf im aktuellen Ordner hochgeladen bzw. ein Ordner angelegt werden?"""
+        """May files be uploaded or a folder be created in the current folder?"""
         if not self.location or self.in_trash():
             return False
         if self.section != "/my-files" and len(self.location) == 1:
@@ -1275,7 +1326,7 @@ class MainWindow(QMainWindow):
         self.act_empty_trash.setEnabled(trash and self.model.rowCount() > 0)
 
     def _set_logged_in(self, state: bool):
-        """Schaltet zwischen „Anmelden …“ und „Abmelden“ um."""
+        """Switches between "Sign in …" and "Sign out"."""
         self.logged_in = state
         self.act_login.setVisible(not state)
         self.act_logout.setVisible(state)
@@ -1335,13 +1386,13 @@ class MainWindow(QMainWindow):
         self.navigate([Crumb(title, path)])
 
     def _sync_chrome(self):
-        # Seitenleiste
+        # Sidebar
         for row, (path, _, _) in enumerate(SECTIONS):
             if path == self.section:
                 self.sidebar.blockSignals(True)
                 self.sidebar.setCurrentRow(row)
                 self.sidebar.blockSignals(False)
-        # Pfadleiste
+        # Breadcrumb bar
         while self.crumb_layout.count():
             widget = self.crumb_layout.takeAt(0).widget()
             if widget:
@@ -1380,7 +1431,7 @@ class MainWindow(QMainWindow):
         self.model.removeRows(0, self.model.rowCount())
         self.stack.setCurrentIndex(0)
         self._update_actions()
-        self.begin_busy(f"Lade {self.location[-1].name} …")
+        self.begin_busy(T("Loading {name} …").format(name=self.location[-1].name))
 
         def loaded(res: Result):
             self.end_busy()
@@ -1388,20 +1439,19 @@ class MainWindow(QMainWindow):
                 return
             if not res.ok:
                 if res.auth_error:
-                    self.statusBar().showMessage("Nicht angemeldet", 8000)
+                    self.statusBar().showMessage(T("Not signed in"), 8000)
                     self.message_label.setText(
-                        "<b>Du bist nicht angemeldet.</b><br><br>"
-                        "Melde dich über „Anmelden“ an. Die Anmeldung selbst passiert im Browser."
+                        T("<b>You are not signed in.</b><br><br>Use “Sign in” to sign in. The sign-in itself happens in your browser.")
                     )
                 else:
                     if self.logged_in is None:
-                        # Status unklar (z. B. kein Netz): Anmelden trotzdem anbieten.
+                        # State unclear (e.g. no network): offer sign-in anyway.
                         self.act_login.setVisible(True)
-                    hint = "" if self.logged_in else "<br><br>Falls du nicht angemeldet bist, melde dich über „Anmelden“ an."
-                    self.statusBar().showMessage("Laden fehlgeschlagen", 8000)
+                    hint = "" if self.logged_in else T("<br><br>If you are not signed in, use “Sign in”.")
+                    self.statusBar().showMessage(T("Loading failed"), 8000)
                     self.message_label.setText(
-                        f"<b>„{self.location[-1].name}“ konnte nicht geladen werden.</b><br><br>"
-                        f"{res.message.replace(chr(10), '<br>')}{hint}"
+                        T("<b>“{name}” could not be loaded.</b><br><br>{message}").format(name=self.location[-1].name, message=res.message.replace(chr(10), "<br>"))
+                        + hint
                     )
                 self.stack.setCurrentIndex(1)
                 return
@@ -1433,7 +1483,7 @@ class MainWindow(QMainWindow):
 
     def _type_text(self, node: Node) -> str:
         if node.kind == "folder":
-            return "Ordner"
+            return T("Folder")
         if node.kind == "device":
             return f"Computer ({node.media_type})" if node.media_type else "Computer"
         if node.kind == "album":
@@ -1443,7 +1493,7 @@ class MainWindow(QMainWindow):
             if mime.isValid() and mime.comment():
                 return mime.comment()
             return node.media_type
-        return "Datei"
+        return T("File")
 
     def _populate(self, nodes: list[Node]):
         self.stack.setCurrentIndex(0)
@@ -1461,7 +1511,7 @@ class MainWindow(QMainWindow):
             time_item = QStandardItem(format_time(node.mtime or node.ctime))
             stamp = node.mtime or node.ctime
             time_item.setData(stamp.timestamp() if stamp else -1, SORT_ROLE)
-            share_text = "Link" if node.shared_url else ("Geteilt" if node.shared else "")
+            share_text = "Link" if node.shared_url else (T("Shared") if node.shared else "")
             share_item = QStandardItem(share_text)
             share_item.setData(share_text, SORT_ROLE)
             self.model.appendRow([name_item, size_item, type_item, time_item, share_item])
@@ -1469,12 +1519,12 @@ class MainWindow(QMainWindow):
         files = len(nodes) - folders
         total = sum(n.size or 0 for n in nodes)
         if nodes:
-            self.statusBar().showMessage(f"{folders} Ordner, {files} Dateien ({human_size(total)})")
+            self.statusBar().showMessage(T("{folders} folders, {files} files ({size})").format(folders=folders, files=files, size=human_size(total)))
         else:
-            self.statusBar().showMessage("Dieser Ordner ist leer.")
+            self.statusBar().showMessage(T("This folder is empty."))
         self._update_actions()
 
-    # ----- Aktionen -------------------------------------------------------
+    # ----- Actions -------------------------------------------------------
 
     def _context_menu(self, pos):
         menu = QMenu(self)
@@ -1489,20 +1539,20 @@ class MainWindow(QMainWindow):
         menu.exec(self.view.viewport().mapToGlobal(pos))
 
     def run_operation(self, args: list, what: str):
-        """Führt eine ändernde CLI-Aktion aus und lädt danach neu."""
+        """Runs a modifying CLI action and reloads afterwards."""
         self.begin_busy(f"{what} …")
 
         def finished(res: Result):
             self.end_busy()
             self.cache.clear()
             if not res.ok:
-                self.statusBar().showMessage(f"{what}: fehlgeschlagen", 8000)
+                self.statusBar().showMessage(T("{what}: failed").format(what=what), 8000)
                 self.show_error(what, res.message)
             else:
                 problems = failures_text(res.data)
                 if problems:
-                    self.show_error(what, f"Nicht alles hat geklappt:\n\n{problems}")
-                self.statusBar().showMessage(f"{what}: erledigt", 5000)
+                    self.show_error(what, T("Not everything worked:\n\n{problems}").format(problems=problems))
+                self.statusBar().showMessage(T("{what}: done").format(what=what), 5000)
             self.load()
 
         self.cli.run(args, finished)
@@ -1520,7 +1570,7 @@ class MainWindow(QMainWindow):
             return
         if (node.size or 0) > 100 * 1024 * 1024:
             answer = QMessageBox.question(
-                self, "Datei öffnen", f"„{node.name}“ ist {human_size(node.size)} groß und wird zum Öffnen heruntergeladen. Fortfahren?"
+                self, T("Open file"), T("“{name}” is {size} and will be downloaded to open it. Continue?").format(name=node.name, size=human_size(node.size))
             )
             if answer != QMessageBox.Yes:
                 return
@@ -1537,7 +1587,7 @@ class MainWindow(QMainWindow):
 
         self._show_transfers()
         self.transfers.add(
-            "Öffnen", node.name, ["filesystem", "download", "-j", "-f", "rename", "-d", "merge", "--", node.path, str(target)], downloaded
+            T("Open"), node.name, ["filesystem", "download", "-j", "-f", "rename", "-d", "merge", "--", node.path, str(target)], downloaded
         )
 
     def _show_transfers(self):
@@ -1545,20 +1595,20 @@ class MainWindow(QMainWindow):
 
     def _transfers_changed(self):
         if self.transfers.busy():
-            self.transfer_dock.setWindowTitle("Übertragungen (läuft)")
+            self.transfer_dock.setWindowTitle(T("Transfers (running)"))
         else:
-            self.transfer_dock.setWindowTitle("Übertragungen")
+            self.transfer_dock.setWindowTitle(T("Transfers"))
 
     def upload_files(self):
         start = self.settings.value("paths/upload", str(Path.home()))
-        paths, _ = QFileDialog.getOpenFileNames(self, "Dateien hochladen", start)
+        paths, _ = QFileDialog.getOpenFileNames(self, T("Upload files"), start)
         if paths:
             self.settings.setValue("paths/upload", str(Path(paths[0]).parent))
             self.upload_paths(paths)
 
     def upload_folder(self):
         start = self.settings.value("paths/upload", str(Path.home()))
-        path = QFileDialog.getExistingDirectory(self, "Ordner hochladen", start)
+        path = QFileDialog.getExistingDirectory(self, T("Upload folder"), start)
         if path:
             self.settings.setValue("paths/upload", str(Path(path).parent))
             self.upload_paths([path])
@@ -1568,7 +1618,7 @@ class MainWindow(QMainWindow):
             return
         target_path = self.current_path
         target_name = self.location[-1].name
-        detail = Path(paths[0]).name if len(paths) == 1 else f"{len(paths)} Elemente"
+        detail = Path(paths[0]).name if len(paths) == 1 else T("{count} items").format(count=len(paths))
         args = ["filesystem", "upload", "-j", "-f", self.strategy("upload_file"), "-d", self.strategy("upload_folder"), "--", *paths, target_path]
 
         def uploaded(_ok: bool, _res: Result):
@@ -1584,11 +1634,11 @@ class MainWindow(QMainWindow):
         if not nodes:
             return
         start = self.settings.value("paths/download", QStandardPaths.writableLocation(QStandardPaths.DownloadLocation))
-        folder = QFileDialog.getExistingDirectory(self, "Herunterladen nach", start)
+        folder = QFileDialog.getExistingDirectory(self, T("Download to"), start)
         if not folder:
             return
         self.settings.setValue("paths/download", folder)
-        detail = nodes[0].name if len(nodes) == 1 else f"{len(nodes)} Elemente"
+        detail = nodes[0].name if len(nodes) == 1 else T("{count} items").format(count=len(nodes))
         args = ["filesystem", "download", "-j", "-f", self.strategy("download_file"), "-d", self.strategy("download_folder"), "--", *[n.path for n in nodes], folder]
         self._show_transfers()
         self.transfers.add("Download", f"{detail} → {folder}", args)
@@ -1596,20 +1646,20 @@ class MainWindow(QMainWindow):
     def new_folder(self):
         if not self.can_write_here():
             return
-        name, ok = QInputDialog.getText(self, "Neuer Ordner", "Name des Ordners:")
+        name, ok = QInputDialog.getText(self, T("New folder"), T("Folder name:"))
         name = name.strip()
         if ok and name:
-            self.run_operation(["filesystem", "create-folder", "-j", "--", self.current_path, name], "Ordner anlegen")
+            self.run_operation(["filesystem", "create-folder", "-j", "--", self.current_path, name], T("Create folder"))
 
     def rename_selected(self):
         nodes = self.selected_nodes()
         if len(nodes) != 1 or not self.can_modify_items():
             return
         node = nodes[0]
-        name, ok = QInputDialog.getText(self, "Umbenennen", "Neuer Name:", text=node.name)
+        name, ok = QInputDialog.getText(self, T("Rename"), T("New name:"), text=node.name)
         name = name.strip()
         if ok and name and name != node.name:
-            self.run_operation(["filesystem", "rename", "-j", "--", node.path, name], "Umbenennen")
+            self.run_operation(["filesystem", "rename", "-j", "--", node.path, name], T("Rename"))
 
     def _pick_target(self, title: str) -> str | None:
         dialog = FolderPicker(self.cli, title, self)
@@ -1621,33 +1671,32 @@ class MainWindow(QMainWindow):
         nodes = self.selected_nodes()
         if not nodes or not self.can_modify_items():
             return
-        target = self._pick_target("Verschieben nach")
+        target = self._pick_target(T("Move to"))
         if target and target != self.current_path:
-            self.run_operation(["filesystem", "move", "-j", "--", *[n.path for n in nodes], target], "Verschieben")
+            self.run_operation(["filesystem", "move", "-j", "--", *[n.path for n in nodes], target], T("Move"))
 
     def copy_selected(self):
         nodes = [n for n in self.selected_nodes() if n.kind != "device"]
         if not nodes or self.in_trash():
             return
-        target = self._pick_target("Kopieren nach")
+        target = self._pick_target(T("Copy to"))
         if target:
-            self.run_operation(["filesystem", "copy", "-j", "--", *[n.path for n in nodes], target], "Kopieren")
+            self.run_operation(["filesystem", "copy", "-j", "--", *[n.path for n in nodes], target], T("Copy"))
 
     def trash_selected(self):
         nodes = self.selected_nodes()
         if not nodes or not self.can_modify_items() or not self.view.hasFocus() and self.filter_edit.hasFocus():
             return
-        self.run_operation(["filesystem", "trash", "-j", "--", *[n.path for n in nodes]], "In den Papierkorb verschieben")
+        self.run_operation(["filesystem", "trash", "-j", "--", *[n.path for n in nodes]], T("Moving to trash"))
 
     @staticmethod
     def _ambiguity_note(nodes: list[Node]) -> str:
         names = sorted({n.name for n in nodes if n.ambiguous})
         if not names:
             return ""
-        listed = ", ".join(f"„{name}“" for name in names)
+        listed = ", ".join(T("“{name}”").format(name=name) for name in names)
         return (
-            f"\n\nAchtung: {listed} liegt mehrfach im Papierkorb. Die CLI kann gleichnamige "
-            "Elemente dort nicht einzeln ansprechen und wählt selbst eines davon aus."
+            T("\n\nWarning: {listed} exists more than once in the trash. The CLI cannot address items with the same name individually there and picks one of them itself.").format(listed=listed)
         )
 
     def restore_selected(self):
@@ -1655,37 +1704,37 @@ class MainWindow(QMainWindow):
         if not nodes or not self.in_trash():
             return
         note = self._ambiguity_note(nodes)
-        if note and QMessageBox.question(self, "Wiederherstellen", "Auswahl wiederherstellen?" + note) != QMessageBox.Yes:
+        if note and QMessageBox.question(self, T("Restore"), T("Restore the selection?") + note) != QMessageBox.Yes:
             return
         paths = list(dict.fromkeys(n.path for n in nodes))
-        self.run_operation(["filesystem", "restore", "-j", "--", *paths], "Wiederherstellen")
+        self.run_operation(["filesystem", "restore", "-j", "--", *paths], T("Restore"))
 
     def delete_selected(self):
         nodes = self.selected_nodes()
         if not nodes or not self.in_trash():
             return
-        label = f"„{nodes[0].name}“" if len(nodes) == 1 else f"{len(nodes)} Elemente"
+        label = T("“{name}”").format(name=nodes[0].name) if len(nodes) == 1 else T("{count} items").format(count=len(nodes))
         answer = QMessageBox.warning(
             self,
-            "Endgültig löschen",
-            f"{label} endgültig löschen?\nDas kann nicht rückgängig gemacht werden." + self._ambiguity_note(nodes),
+            T("Delete permanently"),
+            T("Permanently delete {label}?\nThis cannot be undone.").format(label=label) + self._ambiguity_note(nodes),
             QMessageBox.Yes | QMessageBox.Cancel,
             QMessageBox.Cancel,
         )
         if answer == QMessageBox.Yes:
             paths = list(dict.fromkeys(n.path for n in nodes))
-            self.run_operation(["filesystem", "delete", "-j", "--", *paths], "Endgültig löschen")
+            self.run_operation(["filesystem", "delete", "-j", "--", *paths], T("Delete permanently"))
 
     def empty_trash(self):
         answer = QMessageBox.warning(
             self,
-            "Papierkorb leeren",
-            "Alle Elemente im Papierkorb endgültig löschen?\nDas kann nicht rückgängig gemacht werden.",
+            T("Empty trash"),
+            T("Permanently delete all items in the trash?\nThis cannot be undone."),
             QMessageBox.Yes | QMessageBox.Cancel,
             QMessageBox.Cancel,
         )
         if answer == QMessageBox.Yes:
-            self.run_operation(["filesystem", "empty-trash", "-j"], "Papierkorb leeren")
+            self.run_operation(["filesystem", "empty-trash", "-j"], T("Empty trash"))
 
     def share_selected(self):
         nodes = self.selected_nodes()
@@ -1703,7 +1752,7 @@ class MainWindow(QMainWindow):
             return
         node = nodes[0]
         dialog = QDialog(self)
-        dialog.setWindowTitle(f"Eigenschaften – {node.name}")
+        dialog.setWindowTitle(T("Properties – {name}").format(name=node.name))
         form = QFormLayout()
 
         def row(label: str, value: str) -> QLabel:
@@ -1714,16 +1763,16 @@ class MainWindow(QMainWindow):
             return widget
 
         row("Name:", node.name)
-        row("Typ:", self._type_text(node))
-        size_label = row("Größe:", human_size(node.size) if node.size is not None else "wird berechnet …")
-        row("Geändert:", format_time(node.mtime))
-        row("Erstellt:", format_time(node.ctime))
-        row("Eigentümer:", node.owner)
-        row("Meine Rolle:", node.role)
-        row("Freigabe:", "Öffentlicher Link" if node.shared_url else ("Geteilt" if node.shared else "Nicht geteilt"))
-        row("Kennung:", node.uid)
+        row(T("Type:"), self._type_text(node))
+        size_label = row(T("Size:"), human_size(node.size) if node.size is not None else T("calculating …"))
+        row(T("Modified:"), format_time(node.mtime))
+        row(T("Created:"), format_time(node.ctime))
+        row(T("Owner:"), node.owner)
+        row(T("My role:"), node.role)
+        row(T("Sharing:"), T("Public link") if node.shared_url else (T("Shared") if node.shared else T("Not shared")))
+        row(T("ID:"), node.uid)
         buttons = QDialogButtonBox(QDialogButtonBox.Close)
-        buttons.button(QDialogButtonBox.Close).setText("Schließen")
+        buttons.button(QDialogButtonBox.Close).setText(T("Close"))
         buttons.rejected.connect(dialog.reject)
         layout = QVBoxLayout(dialog)
         layout.addLayout(form)
@@ -1742,9 +1791,9 @@ class MainWindow(QMainWindow):
                         return
                     if res.ok and isinstance(res.data, dict):
                         count = res.data.get("numberOfDescendants", 0)
-                        size_label.setText(f"{human_size(res.data.get('size', 0))} in {count} Elementen (inkl. Papierkorb)")
+                        size_label.setText(T("{size} in {count} items (incl. trash)").format(size=human_size(res.data.get("size", 0)), count=count))
                     else:
-                        size_label.setText("unbekannt")
+                        size_label.setText(T("unknown"))
 
                 self.cli.run(["filesystem", "size", "-j", "--", node.path], sized)
         dialog.exec()
@@ -1757,42 +1806,41 @@ class MainWindow(QMainWindow):
 
     def logout(self):
         if self.transfers.busy():
-            QMessageBox.information(self, "Abmelden", "Es laufen noch Übertragungen. Warte, bis sie fertig sind, oder brich sie ab.")
+            QMessageBox.information(self, T("Sign out"), T("Transfers are still running. Wait until they finish, or cancel them."))
             return
         answer = QMessageBox.question(
             self,
-            "Abmelden",
-            "Von Proton Drive abmelden?\nDie CLI löscht dabei ihre lokalen Zugangsdaten und Caches. "
-            "Deine Dateien im Drive bleiben unverändert.",
+            T("Sign out"),
+            T("Sign out of Proton Drive?\nThe CLI deletes its local credentials and caches. Your files in the Drive stay unchanged."),
         )
         if answer != QMessageBox.Yes:
             return
-        self.begin_busy("Melde ab …")
+        self.begin_busy(T("Signing out …"))
 
         def finished(res: Result):
             self.end_busy()
             if not res.ok:
-                self.statusBar().showMessage("Abmelden fehlgeschlagen", 8000)
-                self.show_error("Abmelden", res.message)
+                self.statusBar().showMessage(T("Signing out failed"), 8000)
+                self.show_error(T("Sign out"), res.message)
                 return
-            # Noch laufende Abfragen dürfen den Status nicht zurück auf „angemeldet“ setzen.
+            # Calls still in flight must not flip the state back to signed in.
             self.cli.invalidate_session()
             self._load_token += 1
             self.cache.clear()
             self.model.removeRows(0, self.model.rowCount())
             self._set_logged_in(False)
-            self.message_label.setText("<b>Du bist abgemeldet.</b><br><br>Über „Anmelden“ meldest du dich wieder an.")
+            self.message_label.setText(T("<b>You are signed out.</b><br><br>Use “Sign in” to sign in again."))
             self.stack.setCurrentIndex(1)
-            self.statusBar().showMessage("Abgemeldet", 5000)
+            self.statusBar().showMessage(T("Signed out"), 5000)
 
         self.cli.run(["auth", "logout"], finished, parse_json=False)
 
-    # ----- Beenden --------------------------------------------------------
+    # ----- Quit --------------------------------------------------------
 
     def closeEvent(self, event):
         if self.transfers.busy():
             answer = QMessageBox.question(
-                self, "Beenden", "Es laufen noch Übertragungen. Trotzdem beenden und abbrechen?"
+                self, T("Quit"), T("Transfers are still running. Quit anyway and cancel them?")
             )
             if answer != QMessageBox.Yes:
                 event.ignore()
@@ -1804,10 +1852,16 @@ class MainWindow(QMainWindow):
 
 
 def main() -> int:
+    if LANGUAGE != system_language():
+        # Numbers, sizes and dates follow the chosen language as well.
+        QLocale.setDefault(QLocale(QLocale.German if LANGUAGE == "de" else QLocale.English))
     app = QApplication(sys.argv)
+    qt_translator = QTranslator(app)  # Qt's own texts, e.g. the Yes/No buttons
+    if LANGUAGE == "de" and qt_translator.load("qtbase_de", QLibraryInfo.path(QLibraryInfo.TranslationsPath)):
+        app.installTranslator(qt_translator)
     app.setApplicationName(APP_NAME)
     app.setApplicationDisplayName(APP_TITLE)
-    # Verknüpft das Fenster mit dem Startmenü-Eintrag proton-drive-ui.desktop.
+    # Ties the window to the launcher entry proton-drive-ui.desktop.
     app.setDesktopFileName(APP_NAME)
     setup_icon_theme()
     app.setWindowIcon(app_icon())

@@ -1,11 +1,11 @@
-# Projektlokale Python-Umgebung
+# Project-local Python environment
 .venv/
 
-# Python-Zwischendateien
+# Python bytecode
 __pycache__/
 *.py[cod]
 
-# Editor- und Desktop-Dateien
+# Editor and desktop files
 .idea/
 .vscode/
 *.swp

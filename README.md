@@ -1,31 +1,34 @@
-# Proton Drive UI (inoffiziell)
+# Proton Drive UI (unofficial)
 
-Eine inoffizielle grafische Oberfläche für die offizielle Proton Drive CLI unter Linux, geschrieben in Python mit Qt (PySide6).
+**English** | [Deutsch](README.de.md)
 
-Die App ruft für jede Aktion die CLI auf (`proton-drive … -j`) und wertet deren JSON-Ausgabe aus. Anmeldung, Verschlüsselung und Übertragung bleiben vollständig Sache der CLI; die App speichert keine Zugangsdaten.
+An unofficial graphical front end for the official Proton Drive CLI on Linux, written in Python with Qt (PySide6).
 
-> **Inoffiziell.** Dieses Projekt steht in keiner Verbindung zur Proton AG und wird von ihr weder unterstützt noch geprüft.
+The app runs the CLI for every action (`proton-drive … -j`) and reads its JSON output. Signing in, encryption and transfers stay entirely with the CLI; the app stores no credentials.
 
-## Funktionen
+> **Unofficial.** This project is not affiliated with Proton AG, and is neither supported nor reviewed by them.
 
-- **Browsen:** Meine Dateien, Computer, Von mir geteilt, Mit mir geteilt und Papierkorb, mit Pfadleiste, Verlauf, Sortierung und Filter
-- **Übertragen:** Dateien und Ordner hochladen (Dialog oder Drag & Drop aus dem Dateimanager), herunterladen und per Doppelklick öffnen; Übertragungen laufen nacheinander und lassen sich abbrechen
-- **Verwalten:** Neuer Ordner, Umbenennen, Verschieben, Kopieren, Papierkorb, Wiederherstellen, endgültig löschen, Eigenschaften mit Ordnergröße
-- **Freigabe:** Öffentlichen Link erstellen (Rolle, Passwort, Ablaufdatum), kopieren und entfernen
-- **Konto:** An- und Abmelden über die CLI; die Anmeldung selbst passiert im Browser
-- **Konflikte:** Im Menü „Konflikte“ einstellbar, was bei bereits vorhandenen Dateien und Ordnern passiert
+## Features
 
-## Voraussetzungen
+- **Browse:** My files, Computer, Shared by me, Shared with me and Trash, with a breadcrumb bar, history, sorting and a filter
+- **Transfer:** Upload files and folders (dialog or drag and drop from the file manager), download them, and open files with a double click; transfers run one after another and can be cancelled
+- **Manage:** New folder, rename, move, copy, trash, restore, delete permanently, properties including folder size
+- **Share:** Create a public link (role, password, expiry date), copy it and remove it
+- **Account:** Sign in and out through the CLI; the sign-in itself happens in your browser
+- **Conflicts:** The “Conflicts” menu sets what happens when a file or folder already exists
+- **Language:** English and German, chosen from the system language or under “View → Language”
 
-- Linux mit grafischer Oberfläche (entwickelt unter KDE Plasma / Wayland)
-- Python 3.10 oder neuer
-- Die Proton Drive CLI als `proton-drive` im `PATH` oder unter `~/.local/bin/proton-drive`
+## Requirements
 
-Getestet mit Proton Drive CLI 0.9.0, Python 3.14 und PySide6 6.12 unter Arch Linux.
+- Linux with a graphical desktop (developed on KDE Plasma / Wayland)
+- Python 3.10 or newer
+- The Proton Drive CLI as `proton-drive` in your `PATH` or at `~/.local/bin/proton-drive`
+
+Tested with Proton Drive CLI 0.9.0, Python 3.14 and PySide6 6.12 on Arch Linux.
 
 ## Installation
 
-Alle Abhängigkeiten landen in einer Umgebung im Projektordner; am System wird nichts installiert.
+All dependencies go into an environment inside the project folder; nothing is installed system-wide.
 
 ```bash
 git clone https://github.com/clnaria/unofficial-proton-drive-ui.git
@@ -34,62 +37,64 @@ python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 ```
 
-## Starten
+## Running
 
 ```bash
 ./run.sh
 ```
 
-Beim ersten Start ohne bestehende CLI-Sitzung bietet die App „Anmelden …“ an.
+If the CLI has no session yet, the app offers “Sign in …”.
 
-### Eintrag im Startmenü
+The language follows your system. To force one, use “View → Language” or set `PROTON_DRIVE_UI_LANG=en` (or `de`) when starting.
+
+### Application launcher entry
 
 ```bash
 ./install-launcher.sh
 ```
 
-Das legt `~/.local/share/applications/proton-drive-ui.desktop` an, mit dem aktuellen Ort des Projektordners. Nach dem Verschieben des Ordners das Skript erneut ausführen. Entfernen:
+This creates `~/.local/share/applications/proton-drive-ui.desktop`, pointing at the current location of the project folder. Run the script again after moving the folder. To remove the entry:
 
 ```bash
 ./install-launcher.sh --remove
 ```
 
-## Tastenkürzel
+## Keyboard shortcuts
 
-| Kürzel | Aktion |
+| Shortcut | Action |
 |---|---|
-| `F5` | Aktualisieren |
-| `Alt+←` / `Alt+→` / `Alt+↑` | Zurück / Vor / Übergeordneter Ordner |
-| `Strg+U` | Dateien hochladen |
-| `Strg+D` | Herunterladen |
-| `Strg+Umschalt+N` | Neuer Ordner |
-| `F2` | Umbenennen |
-| `Entf` | In den Papierkorb |
-| `Alt+Eingabe` | Eigenschaften |
-| `Strg+F` | Im Ordner filtern |
+| `F5` | Refresh |
+| `Alt+←` / `Alt+→` / `Alt+↑` | Back / Forward / Parent folder |
+| `Ctrl+U` | Upload files |
+| `Ctrl+D` | Download |
+| `Ctrl+Shift+N` | New folder |
+| `F2` | Rename |
+| `Del` | Move to trash |
+| `Alt+Enter` | Properties |
+| `Ctrl+F` | Filter in folder |
 
-## Bekannte Grenzen
+## Known limitations
 
-- **Kein Fortschritt in Prozent.** Die CLI meldet bei Übertragungen nur eine Zusammenfassung am Ende; die App zeigt deshalb „Läuft …“ mit Laufzeit.
-- **Gleichnamige Elemente im Papierkorb.** Die CLI (Stand 0.9.0) spricht Elemente im Papierkorb nur über ihren Namen an und kann gleichnamige nicht unterscheiden. Die App warnt in diesem Fall vor dem Wiederherstellen oder Löschen.
-- **Drag & Drop nur in eine Richtung.** Dateien lassen sich in die App ziehen, aber nicht aus ihr heraus; dafür gibt es „Herunterladen …“.
-- **Fotos und Alben** der CLI sind noch nicht eingebunden.
-- **Oberfläche nur auf Deutsch.**
-- **Passwort für Freigabelinks:** Es wird der CLI als Kommandozeilenargument übergeben und ist für die Dauer des Aufrufs in der Prozessliste des eigenen Rechners sichtbar.
+- **No progress percentage.** The CLI only reports a summary at the end of a transfer, so the app shows “Running …” with the elapsed time.
+- **Items with the same name in the trash.** The CLI (as of 0.9.0) addresses trashed items by name only and cannot tell apart items that share a name. The app warns before restoring or deleting in that case.
+- **Drag and drop works one way.** Files can be dragged into the app but not out of it; use “Download …” instead.
+- **Photos and albums** of the CLI are not integrated yet.
+- **Share link password:** It is passed to the CLI as a command-line argument and is visible in your own machine's process list while the call runs.
 
-## Aufbau
+## Project layout
 
-| Datei | Zweck |
+| File | Purpose |
 |---|---|
-| `proton_drive_ui.py` | Die gesamte App |
-| `run.sh` | Startet die App aus der lokalen Umgebung |
-| `install-launcher.sh` | Legt den Startmenü-Eintrag an oder entfernt ihn |
-| `icon.svg` | App-Icon (eigenes Motiv, kein Proton-Logo) |
-| `requirements.txt` | Python-Abhängigkeiten |
-| `LICENSE` | Lizenztext (MIT) |
+| `proton_drive_ui.py` | The whole app (source texts are English) |
+| `translations.py` | German translation of the interface |
+| `run.sh` | Starts the app from the local environment |
+| `install-launcher.sh` | Creates or removes the launcher entry |
+| `icon.svg` | App icon (an original design, not the Proton logo) |
+| `requirements.txt` | Python dependencies |
+| `LICENSE` | Licence text (MIT) |
 
-Geöffnete Dateien liegen vorübergehend unter `~/.cache/proton-drive-ui/open` und werden beim Start und beim Beenden gelöscht. Einstellungen stehen in `~/.config/proton-drive-ui/`.
+Opened files are kept temporarily in `~/.cache/proton-drive-ui/open` and deleted on start and on exit. Settings are stored in `~/.config/proton-drive-ui/`.
 
-## Lizenz
+## Licence
 
-MIT – jeder darf die Software frei benutzen, kopieren, verändern und weitergeben, auch kommerziell. Einzige Bedingung: Der Lizenztext aus `LICENSE` bleibt bei Kopien dabei. Es gibt keine Gewährleistung.
+MIT – anyone may use, copy, modify and distribute the software freely, including commercially. The only condition: the licence text from `LICENSE` stays with copies. There is no warranty.
