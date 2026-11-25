@@ -28,6 +28,20 @@ Tested with Proton Drive CLI 0.9.0, Python 3.14 and PySide6 6.12 on Arch Linux.
 
 ## Installation
 
+### Arch Linux package
+
+An AUR entry is planned. Until then you can build the package yourself. The Proton Drive CLI has to be installed as a package first, for example `proton-drive-cli-bin` from the AUR.
+
+```bash
+git clone https://github.com/clnaria/unofficial-proton-drive-ui.git
+cd unofficial-proton-drive-ui/packaging/arch
+makepkg -si
+```
+
+This installs the `proton-drive-ui` command and a launcher entry, and uses the system's PySide6.
+
+### From source
+
 All dependencies go into an environment inside the project folder; nothing is installed system-wide.
 
 ```bash
@@ -39,6 +53,8 @@ python3 -m venv .venv
 
 ## Running
 
+With the Arch package, start “Proton Drive UI (unofficial)” from the application launcher or run `proton-drive-ui`. From a source checkout:
+
 ```bash
 ./run.sh
 ```
@@ -47,7 +63,7 @@ If the CLI has no session yet, the app offers “Sign in …”.
 
 The language follows your system. To force one, use “View → Language” or set `PROTON_DRIVE_UI_LANG=en` (or `de`) when starting.
 
-### Application launcher entry
+### Application launcher entry for a source checkout
 
 ```bash
 ./install-launcher.sh
@@ -91,6 +107,7 @@ This creates `~/.local/share/applications/proton-drive-ui.desktop`, pointing at 
 | `data/proton-drive-ui.desktop` | Launcher entry used by packages |
 | `tests/` | Test suite; runs against a fake CLI, no account needed |
 | `pyproject.toml` | Package metadata and build configuration |
+| `packaging/arch/PKGBUILD` | Build recipe for the Arch Linux package |
 | `run.sh` | Starts the app from the local environment |
 | `install-launcher.sh` | Creates or removes the launcher entry |
 | `requirements.txt`, `requirements-dev.txt` | Python dependencies for running and for development |

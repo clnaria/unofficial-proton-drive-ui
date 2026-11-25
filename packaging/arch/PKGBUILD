@@ -1,0 +1,25 @@
+# Maintainer: clnaria <361166174+clnaria@users.noreply.github.com>
+pkgname=unofficial-proton-drive-ui
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Unofficial Qt front end for the Proton Drive CLI"
+arch=('any')
+url="https://github.com/clnaria/unofficial-proton-drive-ui"
+license=('MIT')
+depends=('python' 'pyside6' 'qt6-svg' 'proton-drive-cli' 'hicolor-icon-theme')
+makedepends=('python-build' 'python-installer' 'python-setuptools' 'python-wheel')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('2209c5a245851dbc164ae6e3022a574d3837c0ab0c843d53ae07637ea9f60214')
+
+build() {
+    cd "$pkgname-$pkgver"
+    python -m build --wheel --no-isolation
+}
+
+package() {
+    cd "$pkgname-$pkgver"
+    python -m installer --destdir="$pkgdir" dist/*.whl
+    install -Dm644 data/proton-drive-ui.desktop "$pkgdir/usr/share/applications/proton-drive-ui.desktop"
+    install -Dm644 proton_drive_ui/icon.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/proton-drive-ui.svg"
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

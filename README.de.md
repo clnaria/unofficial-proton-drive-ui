@@ -28,6 +28,20 @@ Getestet mit Proton Drive CLI 0.9.0, Python 3.14 und PySide6 6.12 unter Arch Lin
 
 ## Installation
 
+### Arch-Linux-Paket
+
+Ein AUR-Eintrag ist geplant. Bis dahin lässt sich das Paket selbst bauen. Die Proton Drive CLI muss vorher als Paket installiert sein, zum Beispiel `proton-drive-cli-bin` aus dem AUR.
+
+```bash
+git clone https://github.com/clnaria/unofficial-proton-drive-ui.git
+cd unofficial-proton-drive-ui/packaging/arch
+makepkg -si
+```
+
+Das installiert den Befehl `proton-drive-ui` und einen Starteintrag und nutzt das PySide6 des Systems.
+
+### Aus dem Quelltext
+
 Alle Abhängigkeiten landen in einer Umgebung im Projektordner; am System wird nichts installiert.
 
 ```bash
@@ -39,13 +53,15 @@ python3 -m venv .venv
 
 ## Starten
 
+Mit dem Arch-Paket startest du „Proton Drive UI (inoffiziell)“ über das Startmenü oder mit `proton-drive-ui`. Aus dem Quelltext:
+
 ```bash
 ./run.sh
 ```
 
 Beim ersten Start ohne bestehende CLI-Sitzung bietet die App „Anmelden …“ an.
 
-### Eintrag im Startmenü
+### Eintrag im Startmenü für den Quelltext
 
 ```bash
 ./install-launcher.sh
@@ -89,6 +105,7 @@ Das legt `~/.local/share/applications/proton-drive-ui.desktop` an, mit dem aktue
 | `data/proton-drive-ui.desktop` | Starteintrag für Pakete |
 | `tests/` | Tests; laufen gegen eine simulierte CLI, ohne Konto |
 | `pyproject.toml` | Paketdaten und Build-Konfiguration |
+| `packaging/arch/PKGBUILD` | Bauanleitung für das Arch-Linux-Paket |
 | `run.sh` | Startet die App aus der lokalen Umgebung |
 | `install-launcher.sh` | Legt den Startmenü-Eintrag an oder entfernt ihn |
 | `requirements.txt`, `requirements-dev.txt` | Python-Abhängigkeiten für Betrieb und Entwicklung |

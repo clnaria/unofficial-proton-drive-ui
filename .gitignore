@@ -11,6 +11,12 @@ dist/
 *.egg-info/
 .pytest_cache/
 
+# makepkg output
+packaging/arch/src/
+packaging/arch/pkg/
+packaging/arch/*.tar.gz
+*.pkg.tar.zst
+
 # Editor and desktop files
 .idea/
 .vscode/
